@@ -1,0 +1,25 @@
+plugins { id 'com.android.application' }
+
+android {
+  namespace 'com.devstyle.studio'
+  compileSdk 34
+
+  defaultConfig {
+    applicationId 'com.devstyle.studio'
+    minSdk 23
+    targetSdk 34
+    versionCode 1
+    versionName '1.0'
+    buildConfigField 'String', 'APP_URL', "\"${project.findProperty('appUrl') ?: ''}\""
+  }
+
+  buildFeatures { buildConfig true }
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+}
+
+dependencies {
+  implementation 'androidx.appcompat:appcompat:1.7.0'
+}
