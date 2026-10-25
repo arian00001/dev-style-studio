@@ -1,0 +1,17 @@
+{
+  "name": "FlowGraph",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Display name of the flow"
+    },
+    "graph": {
+      "type": "string",
+      "description": "JSON array of nodes: [{ id, type, x, y }]"
+    }
+  },
+  "required": [
+    "graph"
+  ]
+}

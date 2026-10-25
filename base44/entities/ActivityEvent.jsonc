@@ -1,0 +1,36 @@
+{
+  "name": "ActivityEvent",
+  "type": "object",
+  "properties": {
+    "project_name": {
+      "type": "string",
+      "description": "Name of the project or ZIP that was worked on"
+    },
+    "repo_full_name": {
+      "type": "string",
+      "description": "GitHub repository, owner/name"
+    },
+    "action": {
+      "type": "string",
+      "description": "Short action label, e.g. push, build, deploy, release"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "info",
+        "success",
+        "error"
+      ],
+      "default": "info"
+    },
+    "message": {
+      "type": "string",
+      "description": "Human readable detail without secrets"
+    }
+  },
+  "required": [
+    "action",
+    "status",
+    "message"
+  ]
+}
