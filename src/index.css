@@ -135,3 +135,98 @@
   stroke-dasharray: 5 7;
   animation: flow-dash 0.85s linear infinite;
 }
+
+@keyframes mesh-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.04);
+  }
+  50% {
+    transform: translate3d(-3%, 2%, 0) scale(1.12);
+  }
+}
+
+@keyframes sheen-sweep {
+  0% {
+    transform: translateX(-130%) skewX(-12deg);
+  }
+  100% {
+    transform: translateX(240%) skewX(-12deg);
+  }
+}
+
+@keyframes soft-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes aura-pulse {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.9);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+@layer utilities {
+  .premium-mesh {
+    background:
+      radial-gradient(46% 38% at 18% 12%, rgba(199, 251, 80, 0.4) 0%, rgba(199, 251, 80, 0) 70%),
+      radial-gradient(42% 36% at 88% 22%, rgba(120, 232, 255, 0.24) 0%, rgba(120, 232, 255, 0) 72%),
+      radial-gradient(56% 46% at 62% 88%, rgba(199, 251, 80, 0.24) 0%, rgba(199, 251, 80, 0) 74%),
+      linear-gradient(160deg, #fafbf6 0%, #f2f5ec 46%, #edf2e7 100%);
+    animation: mesh-drift 22s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .premium-grid {
+    background-image: radial-gradient(circle at 1px 1px, rgba(10, 11, 10, 0.16) 1px, transparent 0);
+    background-size: 24px 24px;
+    mask-image: radial-gradient(120% 90% at 50% 28%, #000 32%, transparent 88%);
+    -webkit-mask-image: radial-gradient(120% 90% at 50% 28%, #000 32%, transparent 88%);
+  }
+
+  .soft-float {
+    animation: soft-float 6s ease-in-out infinite;
+  }
+
+  .node-sheen::after {
+    content: "";
+    position: absolute;
+    top: -30%;
+    bottom: -30%;
+    width: 42%;
+    background: linear-gradient(90deg, transparent, rgba(199, 251, 80, 0.6), transparent);
+    opacity: 0;
+  }
+
+  .node-sheen[data-live="true"]::after {
+    opacity: 1;
+    animation: sheen-sweep 1.5s ease-in-out infinite;
+  }
+
+  .aura-pulse {
+    animation: aura-pulse 1.8s ease-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-mesh,
+  .soft-float,
+  .aura-pulse,
+  .node-sheen::after {
+    animation: none !important;
+  }
+}
