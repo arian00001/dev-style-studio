@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, RotateCcw, Settings2, Workflow } from "lucide-react";
+import { Check, RotateCcw, Settings2 } from "lucide-react";
 import { STEPS, useStudio } from "@/components/studio/StudioProvider";
 
 export function StudioShell({ children }) {
@@ -9,9 +9,6 @@ export function StudioShell({ children }) {
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden bg-white">
-      <div className="pointer-events-none fixed inset-0 studio-grid opacity-60" />
-      <div className="pointer-events-none fixed -right-24 -top-24 h-64 w-64 rounded-full bg-studio-lime/25 blur-3xl" />
-
       <div className="relative mx-auto flex min-h-screen w-full max-w-2xl flex-col px-5 pb-10 pt-6 sm:px-8">
         <header className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -28,13 +25,6 @@ export function StudioShell({ children }) {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <Link
-              to="/flow"
-              className="flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-studio-ink hover:text-studio-ink"
-            >
-              <Workflow className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Flow</span>
-            </Link>
             <Link
               to="/settings"
               className="flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-studio-ink hover:text-studio-ink"
