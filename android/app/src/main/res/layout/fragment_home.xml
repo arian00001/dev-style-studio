@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="@color/screen"
+  android:orientation="vertical"
+  android:paddingLeft="18dp"
+  android:paddingTop="22dp"
+  android:paddingRight="18dp"
+  android:paddingBottom="10dp">
+
+  <TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:letterSpacing="0.18"
+    android:text="DASHBOARD"
+    android:textColor="@color/limeDeep"
+    android:textSize="10sp"
+    android:textStyle="bold" />
+
+  <TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="4dp"
+    android:text="Your repositories"
+    android:textColor="@color/ink"
+    android:textSize="24sp"
+    android:textStyle="bold" />
+
+  <TextView
+    android:id="@+id/homeSubtitle"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="4dp"
+    android:text="Loading repositories…"
+    android:textColor="@color/muted"
+    android:textSize="12sp" />
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="14dp"
+    android:background="@drawable/bg_card"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+      android:id="@+id/buildTitle"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:text="Build status"
+      android:textColor="@color/ink"
+      android:textSize="14sp"
+      android:textStyle="bold" />
+
+    <TextView
+      android:id="@+id/buildStatus"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="4dp"
+      android:text="Pick a repository to see its latest build."
+      android:textColor="@color/muted"
+      android:textSize="12sp" />
+
+    <ProgressBar
+      android:id="@+id/buildBar"
+      style="?android:attr/progressBarStyleHorizontal"
+      android:layout_width="match_parent"
+      android:layout_height="6dp"
+      android:layout_marginTop="10dp"
+      android:max="100"
+      android:progress="0"
+      android:progressTint="@color/limeDeep"
+      android:progressBackgroundTint="@color/line" />
+
+    <TextView
+      android:id="@+id/buildSteps"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="10dp"
+      android:fontFamily="monospace"
+      android:lineSpacingExtra="3dp"
+      android:textColor="@color/muted"
+      android:textSize="11sp" />
+
+    <TextView
+      android:id="@+id/apkLink"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="10dp"
+      android:background="@drawable/bg_pill_active"
+      android:clickable="true"
+      android:focusable="true"
+      android:paddingLeft="12dp"
+      android:paddingTop="7dp"
+      android:paddingRight="12dp"
+      android:paddingBottom="7dp"
+      android:text="Download APK"
+      android:textColor="@color/ink"
+      android:textSize="12sp"
+      android:textStyle="bold"
+      android:visibility="gone" />
+  </LinearLayout>
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10dp"
+    android:background="@drawable/bg_card"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="Vercel"
+      android:textColor="@color/ink"
+      android:textSize="14sp"
+      android:textStyle="bold" />
+
+    <TextView
+      android:id="@+id/vercelStatus"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="4dp"
+      android:text="Not connected yet."
+      android:textColor="@color/muted"
+      android:textSize="12sp" />
+
+    <TextView
+      android:id="@+id/liveUrl"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="8dp"
+      android:clickable="true"
+      android:focusable="true"
+      android:textColor="@color/limeDeep"
+      android:textSize="12sp"
+      android:textStyle="bold"
+      android:visibility="gone" />
+
+    <TextView
+      android:id="@+id/vercelButton"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="10dp"
+      android:background="@drawable/bg_pill"
+      android:clickable="true"
+      android:focusable="true"
+      android:paddingLeft="12dp"
+      android:paddingTop="7dp"
+      android:paddingRight="12dp"
+      android:paddingBottom="7dp"
+      android:text="Connect Vercel"
+      android:textColor="@color/ink"
+      android:textSize="12sp"
+      android:textStyle="bold" />
+  </LinearLayout>
+
+  <ProgressBar
+    android:id="@+id/repoBar"
+    style="?android:attr/progressBarStyleHorizontal"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10dp"
+    android:indeterminate="true"
+    android:indeterminateTint="@color/limeDeep"
+    android:visibility="gone" />
+
+  <androidx.recyclerview.widget.RecyclerView
+    android:id="@+id/repoList"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_marginTop="10dp"
+    android:layout_weight="1"
+    android:clipToPadding="false"
+    android:paddingBottom="14dp" />
+</LinearLayout>

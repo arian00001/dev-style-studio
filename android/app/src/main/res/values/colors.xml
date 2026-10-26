@@ -7,5 +7,8 @@
   <color name="hint">#9AA79A</color>
   <color name="line">#E2E8DF</color>
   <color name="lime">#C7FB50</color>
-  <color name="limeDeep">#7BAE1E</color>
+  <color name="limeSoft">#E9FBD0</color>
+  <color name="limeDeep">#5C8A10</color>
+  <color name="emerald">#8FE7A8</color>
+  <color name="danger">#B3261E</color>
 </resources>

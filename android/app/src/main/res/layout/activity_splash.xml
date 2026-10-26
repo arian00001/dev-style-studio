@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="@color/screen"
+  android:gravity="center"
+  android:orientation="vertical"
+  android:padding="32dp">
+
+  <TextView
+    android:id="@+id/splashMark"
+    android:layout_width="96dp"
+    android:layout_height="96dp"
+    android:background="@drawable/bg_splash_mark"
+    android:gravity="center"
+    android:text="&gt;_"
+    android:textColor="@color/ink"
+    android:textSize="30sp"
+    android:textStyle="bold" />
+
+  <TextView
+    android:id="@+id/splashTitle"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="22dp"
+    android:letterSpacing="0.02"
+    android:text="Dev Style Studio"
+    android:textColor="@color/ink"
+    android:textSize="24sp"
+    android:textStyle="bold" />
+
+  <TextView
+    android:id="@+id/splashSubtitle"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp"
+    android:text="build · deploy · monitor"
+    android:textColor="@color/muted"
+    android:textSize="13sp" />
+
+  <ProgressBar
+    android:id="@+id/splashBar"
+    android:layout_width="140dp"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="30dp"
+    android:indeterminateTint="@color/limeDeep" />
+</LinearLayout>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="@color/screen"
+  android:orientation="vertical"
+  android:paddingLeft="18dp"
+  android:paddingTop="22dp"
+  android:paddingRight="18dp"
+  android:paddingBottom="10dp">
+
+  <TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:letterSpacing="0.18"
+    android:text="INBOX"
+    android:textColor="@color/limeDeep"
+    android:textSize="10sp"
+    android:textStyle="bold" />
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="4dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <TextView
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_weight="1"
+      android:text="All mail"
+      android:textColor="@color/ink"
+      android:textSize="24sp"
+      android:textStyle="bold" />
+
+    <TextView
+      android:id="@+id/inboxRefresh"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:background="@drawable/bg_pill"
+      android:clickable="true"
+      android:focusable="true"
+      android:paddingLeft="12dp"
+      android:paddingTop="7dp"
+      android:paddingRight="12dp"
+      android:paddingBottom="7dp"
+      android:text="Sync now"
+      android:textColor="@color/ink"
+      android:textSize="12sp"
+      android:textStyle="bold" />
+  </LinearLayout>
+
+  <TextView
+    android:id="@+id/inboxStatus"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="4dp"
+    android:text="Monitor is off."
+    android:textColor="@color/muted"
+    android:textSize="12sp" />
+
+  <androidx.recyclerview.widget.RecyclerView
+    android:id="@+id/mailList"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_marginTop="10dp"
+    android:layout_weight="1"
+    android:clipToPadding="false"
+    android:paddingBottom="14dp" />
+</LinearLayout>

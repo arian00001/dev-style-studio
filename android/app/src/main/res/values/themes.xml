@@ -1,12 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <style name="Theme.DevStyle" parent="Theme.AppCompat.Light.NoActionBar">
+  <style name="Theme.DevStyle" parent="Theme.MaterialComponents.Light.NoActionBar">
     <item name="android:windowBackground">@color/screen</item>
     <item name="android:statusBarColor">@color/screen</item>
-    <item name="android:navigationBarColor">@color/screen</item>
+    <item name="android:navigationBarColor">@color/card</item>
     <item name="android:windowLightStatusBar">true</item>
     <item name="colorAccent">@color/limeDeep</item>
     <item name="colorPrimary">@color/ink</item>
+    <item name="colorPrimaryVariant">@color/ink</item>
+    <item name="colorOnPrimary">@color/card</item>
+    <item name="colorSecondary">@color/limeDeep</item>
     <item name="android:textColorPrimary">@color/ink</item>
+  </style>
+
+  <style name="Theme.DevStyle.Splash" parent="Theme.DevStyle">
+    <item name="android:windowBackground">@color/screen</item>
+    <item name="android:windowNoTitle">true</item>
   </style>
 </resources>
