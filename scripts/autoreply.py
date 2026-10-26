@@ -228,12 +228,58 @@ def compose(sender: str, subject: str, body: str) -> dict:
     }
 
 
-def wrap_ai_reply(written: str, sender: str, subject: str) -> str:
-    """Drop the model's words into the designed card the app published."""
+CLICKABLE = re.compile(
+    r"((?:https?://|www\.)[^\s<]+)"
+    r"|([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})"
+    r"|(\+?\d[\d\s().-]{7,}\d)"
+)
+LINK_STYLE = "color:#166534;font-weight:600;text-decoration:none;"
+
+
+def whatsapp_number(label: str) -> str:
+    digits = re.sub(r"\D", "", label)
+    if digits.startswith("00"):
+        digits = digits[2:]
+    elif digits.startswith("0"):
+        digits = "880" + digits[1:]
+    return digits
+
+
+def linkify(text: str) -> str:
+    """Escaped HTML where links, addresses and numbers are tappable (numbers open WhatsApp)."""
     import html as htmllib
 
+    escaped = htmllib.escape(text or "")
+    out: list = []
+    last = 0
+    for match in CLICKABLE.finditer(escaped):
+        label, end = match.group(), match.end()
+        url, mail, phone = match.group(1), match.group(2), match.group(3)
+        if url:
+            trimmed = url.rstrip(".,;:!?)'\"")
+            end = match.start() + len(trimmed)
+            label = trimmed
+            href = trimmed if trimmed.startswith("http") else f"https://{trimmed}"
+        elif mail:
+            href = f"mailto:{label}"
+        elif phone:
+            digits = whatsapp_number(label)
+            if len(digits) < 9:
+                continue
+            href = f"https://wa.me/{digits}"
+        else:
+            continue
+        out.append(escaped[last:match.start()])
+        out.append(f'<a href="{href}" target="_blank" style="{LINK_STYLE}">{label}</a>')
+        last = end
+    out.append(escaped[last:])
+    return "".join(out)
+
+
+def wrap_ai_reply(written: str, sender: str, subject: str) -> str:
+    """Drop the model's words into the designed card the app published."""
     paragraphs = "".join(
-        f'<p style="margin:0 0 14px;">{htmllib.escape(block.strip()).replace(chr(10), "<br/>")}</p>'
+        f'<p style="margin:0 0 14px;">{linkify(block.strip()).replace(chr(10), "<br/>")}</p>'
         for block in written.split("\n\n")
         if block.strip()
     )

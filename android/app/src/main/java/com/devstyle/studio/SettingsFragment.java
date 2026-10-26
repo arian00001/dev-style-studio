@@ -307,14 +307,21 @@ public class SettingsFragment extends Fragment {
     parent.addView(text, params);
   }
 
-  private void addImage(LinearLayout parent, String url) {
-    ImageView image = new ImageView(requireContext());
+  private void addImage(LinearLayout parent, final String url) {
+    final ImageView image = new ImageView(requireContext());
     image.setAdjustViewBounds(true);
-    image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+    image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+    image.setMinimumHeight(260);
+    image.setBackgroundColor(0xFFEFF2E8);
     LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, 420);
+        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    params.topMargin = 10;
+    params.bottomMargin = 10;
     parent.addView(image, params);
-    ImgBb.loadBitmap(url, image::setImageBitmap);
+    ImgBb.loadBitmap(url, bitmap -> {
+      image.setImageBitmap(bitmap);
+      image.requestLayout();
+    });
   }
 
   private void verifyGithub() {

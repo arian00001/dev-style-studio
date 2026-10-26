@@ -97,12 +97,17 @@ public class ReplyTemplate {
     String headingText = fill(heading, from, subjectLine).trim();
     String bodyText = mainText != null && mainText.trim().length() > 0
         ? mainText.trim() : fill(body, from, subjectLine);
-    return build(headingText, paragraphs(bodyText), escape(fill(signature, from, subjectLine).trim()));
+    return build(headingText, paragraphs(bodyText), signatureHtml(fill(signature, from, subjectLine).trim()));
   }
 
   /** HTML with the {{from}} / {{subject}} placeholders left in for GitHub Actions. */
   public String rawHtml() {
-    return build(heading, paragraphs(body), escape(signature));
+    return build(heading, paragraphs(body), signatureHtml(signature));
+  }
+
+  private String signatureHtml(String text) {
+    if (text == null || text.trim().length() == 0) return "";
+    return linkify(escape(text.trim())).replace("\n", "<br/>");
   }
 
   /** The file the cloud cron reads, so a template set here also replies from GitHub. */
@@ -174,7 +179,7 @@ public class ReplyTemplate {
       String clean = block.trim();
       if (clean.length() == 0) continue;
       sb.append("<p style=\"margin:0 0 14px;\">")
-          .append(escape(clean).replace("\n", "<br/>"))
+          .append(linkify(escape(clean)).replace("\n", "<br/>"))
           .append("</p>");
     }
     return sb.toString();
@@ -183,5 +188,63 @@ public class ReplyTemplate {
   private String escape(String text) {
     if (text == null) return "";
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+  }
+
+  /** Links, numbers and addresses typed in the reply become tappable in the mail app. */
+  private static final java.util.regex.Pattern CLICKABLE = java.util.regex.Pattern.compile(
+      "((?:https?://|www\\.)[^\\s<]+)"
+          + "|([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,})"
+          + "|(\\+?\\d[\\d\\s().-]{7,}\\d)");
+
+  private static final String LINK_STYLE =
+      "color:#166534;font-weight:600;text-decoration:none;";
+
+  private String linkify(String escaped) {
+    if (escaped == null || escaped.length() == 0) return "";
+    java.util.regex.Matcher matcher = CLICKABLE.matcher(escaped);
+    StringBuilder out = new StringBuilder();
+    int last = 0;
+    while (matcher.find()) {
+      String label = matcher.group();
+      int end = matcher.end();
+      String href;
+      if (matcher.group(1) != null) {
+        String url = label;
+        while (url.length() > 0 && ".,;:!?)\u2019\"'".indexOf(url.charAt(url.length() - 1)) >= 0) {
+          url = url.substring(0, url.length() - 1);
+        }
+        end = matcher.start() + url.length();
+        label = url;
+        href = url.startsWith("http") ? url : "https://" + url;
+      } else if (matcher.group(2) != null) {
+        href = "mailto:" + label;
+      } else {
+        String digits = whatsappNumber(label);
+        if (digits.length() < 9) {
+          out.append(escaped, last, end);
+          last = end;
+          continue;
+        }
+        href = "https://wa.me/" + digits;
+      }
+      out.append(escaped, last, matcher.start());
+      out.append("<a href=\"").append(href).append("\" target=\"_blank\" style=\"")
+          .append(LINK_STYLE).append("\">").append(label).append("</a>");
+      last = end;
+    }
+    out.append(escaped.substring(Math.min(last, escaped.length())));
+    return out.toString();
+  }
+
+  /** A number typed into the reply opens WhatsApp: +8801…, 8801… and 01… all work. */
+  private String whatsappNumber(String label) {
+    String digits = label.replaceAll("[^0-9]", "");
+    if (digits.startsWith("00")) digits = digits.substring(2);
+    else if (digits.startsWith("880")) {
+      // already international
+    } else if (digits.startsWith("0")) {
+      digits = "880" + digits.substring(1);
+    }
+    return digits;
   }
 }

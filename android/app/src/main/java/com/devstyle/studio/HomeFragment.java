@@ -166,6 +166,7 @@ public class HomeFragment extends Fragment implements RepoAdapter.Listener {
     buildTitle.setText(repo.fullName());
     buildSteps.setText("");
     buildBar.setProgress(0);
+    if (prefs.hasGithub()) loadApk(repo);
     startBuildPolling(repo);
   }
 
@@ -267,33 +268,56 @@ public class HomeFragment extends Fragment implements RepoAdapter.Listener {
     GitHubClient.latestApk(prefs.github(), repo.owner, repo.name, new GitHubClient.Callback() {
       @Override
       public void onSuccess(String body) {
-        if (!isAdded()) return;
-        try {
-          JSONObject release = new JSONObject(body);
-          JSONArray assets = release.optJSONArray("assets");
-          for (int i = 0; assets != null && i < assets.length(); i++) {
-            JSONObject asset = assets.getJSONObject(i);
-            String name = asset.optString("name", "");
-            if (name.endsWith(".apk")) {
-              String url = asset.optString("browser_download_url", "");
-              apkLink.setTag(url);
-              apkLink.setText("Download APK · " + name);
-              apkLink.setVisibility(View.VISIBLE);
-              prefs.put("apk_" + repo.fullName(), url);
-              return;
-            }
-          }
-          apkLink.setVisibility(View.GONE);
-        } catch (Exception ignored) {
-          apkLink.setVisibility(View.GONE);
-        }
+        showApk(repo, body, false);
       }
 
       @Override
       public void onError(String message) {
-        if (isAdded()) apkLink.setVisibility(View.GONE);
+        // No "latest" release (or it is a pre-release): scan the recent ones.
+        GitHubClient.recentReleases(prefs.github(), repo.owner, repo.name, new GitHubClient.Callback() {
+          @Override
+          public void onSuccess(String body) {
+            showApk(repo, body, true);
+          }
+
+          @Override
+          public void onError(String message) {
+            if (isAdded()) apkLink.setVisibility(View.GONE);
+          }
+        });
       }
     });
+  }
+
+  private void showApk(Repo repo, String body, boolean isList) {
+    if (!isAdded()) return;
+    try {
+      JSONArray assets = null;
+      if (isList) {
+        JSONArray releases = new JSONArray(body);
+        for (int i = 0; i < releases.length() && assets == null; i++) {
+          JSONArray candidate = releases.getJSONObject(i).optJSONArray("assets");
+          if (candidate != null && candidate.length() > 0) assets = candidate;
+        }
+      } else {
+        assets = new JSONObject(body).optJSONArray("assets");
+      }
+      for (int i = 0; assets != null && i < assets.length(); i++) {
+        JSONObject asset = assets.getJSONObject(i);
+        String name = asset.optString("name", "");
+        if (name.endsWith(".apk")) {
+          String url = asset.optString("browser_download_url", "");
+          apkLink.setTag(url);
+          apkLink.setText("Download APK · " + name);
+          apkLink.setVisibility(View.VISIBLE);
+          prefs.put("apk_" + repo.fullName(), url);
+          return;
+        }
+      }
+      apkLink.setVisibility(View.GONE);
+    } catch (Exception ignored) {
+      apkLink.setVisibility(View.GONE);
+    }
   }
 
   // ---------------------------------------------------------------- row actions

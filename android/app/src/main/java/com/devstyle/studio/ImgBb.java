@@ -94,8 +94,24 @@ public class ImgBb {
         conn = (HttpURLConnection) new URL(url.trim()).openConnection();
         conn.setConnectTimeout(15000);
         conn.setReadTimeout(20000);
-        Bitmap bitmap = BitmapFactory.decodeStream(conn.getInputStream());
-        if (bitmap != null) MAIN.post(() -> listener.onBitmap(bitmap));
+        conn.setInstanceFollowRedirects(true);
+        // ImgBB sits behind Cloudflare, which rejects the default "Java/…" user agent.
+        conn.setRequestProperty("User-Agent",
+            "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 "
+                + "(KHTML, like Gecko) Chrome/122.0 Mobile Safari/537.36");
+        conn.setRequestProperty("Accept", "image/*,*/*;q=0.8");
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        InputStream in = conn.getInputStream();
+        byte[] chunk = new byte[8192];
+        int read;
+        while ((read = in.read(chunk)) > 0) buffer.write(chunk, 0, read);
+        in.close();
+        byte[] bytes = buffer.toByteArray();
+        Bitmap bitmap = bytes.length == 0 ? null : BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+        if (bitmap != null) {
+          final Bitmap loaded = bitmap;
+          MAIN.post(() -> listener.onBitmap(loaded));
+        }
       } catch (Exception ignored) {
         // preview simply stays without the image
       } finally {

@@ -163,6 +163,10 @@ public class GitHubClient {
     request(token, "GET", "/repos/" + owner + "/" + repo + "/releases/latest", null, cb);
   }
 
+  public static void recentReleases(String token, String owner, String repo, Callback cb) {
+    request(token, "GET", "/repos/" + owner + "/" + repo + "/releases?per_page=5", null, cb);
+  }
+
   public static void editRepo(String token, String owner, String repo, String bodyJson, Callback cb) {
     request(token, "PATCH", "/repos/" + owner + "/" + repo, bodyJson, cb);
   }

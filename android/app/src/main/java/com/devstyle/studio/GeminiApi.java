@@ -12,6 +12,9 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -26,7 +29,8 @@ public class GeminiApi {
 
   private static final ExecutorService POOL = Executors.newSingleThreadExecutor();
   private static final Handler MAIN = new Handler(Looper.getMainLooper());
-  private static final String[] MODELS = {"gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest"};
+  private static final String[] FALLBACK = {"gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"};
+  private static final List<String> DISCOVERED = new ArrayList<>();
 
   public static void ask(final String key, final String prompt, final Callback cb) {
     if (key == null || key.trim().length() == 0) {
@@ -35,7 +39,7 @@ public class GeminiApi {
     }
     POOL.execute(() -> {
       String lastError = "Gemini did not answer.";
-      for (String model : MODELS) {
+      for (String model : models(key.trim())) {
         try {
           String text = callModel(key.trim(), model, prompt);
           if (text != null) {
@@ -50,6 +54,53 @@ public class GeminiApi {
       final String finalError = lastError;
       MAIN.post(() -> cb.onError(finalError));
     });
+  }
+
+  /** Ask the API which models this key may use: model names change, hardcoded ones break. */
+  private static synchronized List<String> models(String key) {
+    if (!DISCOVERED.isEmpty()) return new ArrayList<>(DISCOVERED);
+    try {
+      URL url = new URL("https://generativelanguage.googleapis.com/v1beta/models?key=" + key);
+      HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+      conn.setConnectTimeout(15000);
+      conn.setReadTimeout(20000);
+      String body = read(conn.getInputStream());
+      conn.disconnect();
+      JSONArray all = new JSONObject(body).optJSONArray("models");
+      List<String> flash = new ArrayList<>();
+      List<String> other = new ArrayList<>();
+      for (int i = 0; all != null && i < all.length(); i++) {
+        JSONObject model = all.getJSONObject(i);
+        String name = model.optString("name", "");
+        if (!name.contains("generateContent")) {
+          JSONArray methods = model.optJSONArray("supportedGenerationMethods");
+          boolean supported = false;
+          for (int m = 0; methods != null && m < methods.length(); m++) {
+            if ("generateContent".equals(methods.optString(m))) supported = true;
+          }
+          if (!supported) continue;
+        }
+        String id = name.startsWith("models/") ? name.substring("models/".length()) : name;
+        String lower = id.toLowerCase();
+        if (lower.contains("image") || lower.contains("tts") || lower.contains("embedding")
+            || lower.contains("aqa") || lower.contains("live") || lower.contains("audio")
+            || lower.contains("gemma") || lower.contains("nano") || lower.contains("banana")
+            || lower.contains("computer") || lower.contains("veo")) {
+          continue;
+        }
+        if (lower.contains("flash")) flash.add(id);
+        else other.add(id);
+      }
+      Collections.sort(flash);
+      Collections.sort(other);
+      DISCOVERED.addAll(flash);
+      DISCOVERED.addAll(other);
+      if (DISCOVERED.size() > 5) DISCOVERED.subList(5, DISCOVERED.size()).clear();
+    } catch (Exception ignored) {
+      // fall through to the known good names
+    }
+    if (DISCOVERED.isEmpty()) Collections.addAll(DISCOVERED, FALLBACK);
+    return new ArrayList<>(DISCOVERED);
   }
 
   private static String callModel(String key, String model, String prompt) throws Exception {
