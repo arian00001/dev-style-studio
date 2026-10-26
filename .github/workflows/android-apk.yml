@@ -52,14 +52,19 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Build debug APK
+      - name: Build signed release APK
         working-directory: android
-        run: gradle assembleDebug --no-daemon
+        run: gradle assembleRelease --no-daemon
 
-      - name: Collect APK
+      - name: Collect and verify APK
         run: |
           mkdir -p dist
-          cp android/app/build/outputs/apk/debug/app-debug.apk dist/dev-style-studio.apk
+          cp android/app/build/outputs/apk/release/app-release.apk dist/dev-style-studio.apk
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -n 1)
+          if [ -n "$APKSIGNER" ]; then
+            "$APKSIGNER" verify --verbose dist/dev-style-studio.apk
+            "$APKSIGNER" print-certs dist/dev-style-studio.apk | grep -i "SHA-256" || true
+          fi
           ls -lh dist
 
       - name: Upload APK artifact
@@ -76,5 +81,5 @@ jobs:
           tag_name: apk-${{ github.run_number }}
           name: Dev Style Studio APK ${{ github.run_number }}
           body: |
-            Native Android build (no browser engine) from ${{ github.sha }}
+            Signed release APK (native Android, no browser engine) from ${{ github.sha }}
           files: dist/dev-style-studio.apk
