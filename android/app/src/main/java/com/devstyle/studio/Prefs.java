@@ -50,6 +50,10 @@ public class Prefs {
     return prefs.getString("selected", "");
   }
 
+  public String get(String key) {
+    return prefs.getString(key, "");
+  }
+
   public void put(String key, String value) {
     prefs.edit().putString(key, value).apply();
   }

@@ -14,6 +14,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
@@ -70,6 +71,7 @@ public class SettingsFragment extends Fragment {
   }
 
   private void save() {
+    boolean hadMail = prefs.hasMail();
     prefs.put("github", github.getText().toString().trim());
     prefs.put("vercel", vercel.getText().toString().trim());
     prefs.put("gemini", gemini.getText().toString().trim());
@@ -78,6 +80,12 @@ public class SettingsFragment extends Fragment {
     prefs.put("template", template.getText().toString());
     prefs.putBool("autoReply", autoReply.isChecked());
     Toast.makeText(requireContext(), "Saved.", Toast.LENGTH_SHORT).show();
+    if (!hadMail && prefs.hasMail()) {
+      // Mailbox just filled in for the first time: switch the 24/7 monitor on straight away.
+      prefs.putBool("monitor", true);
+      MailService.start(requireContext());
+      Toast.makeText(requireContext(), "24/7 monitor is on.", Toast.LENGTH_SHORT).show();
+    }
     refreshMonitorState();
   }
 
@@ -115,8 +123,18 @@ public class SettingsFragment extends Fragment {
         return;
       }
       prefs.putBool("monitor", true);
-      ContextCompat.startForegroundService(requireContext(), new Intent(requireContext(), MailService.class));
+      MailService.start(requireContext());
       Toast.makeText(requireContext(), "24/7 monitor is on.", Toast.LENGTH_SHORT).show();
+      if (prefs.get("batteryAsked").length() == 0) {
+        prefs.put("batteryAsked", "1");
+        new AlertDialog.Builder(requireContext())
+            .setTitle("Keep the monitor alive 24/7")
+            .setMessage("Allow Dev Style Studio to ignore battery optimisation, otherwise Android "
+                + "stops the inbox monitor in the background.")
+            .setPositiveButton("Allow", (dialog, which) -> openBatterySettings())
+            .setNegativeButton("Later", null)
+            .show();
+      }
     }
     refreshMonitorState();
   }

@@ -1,11 +1,16 @@
 package com.devstyle.studio;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -25,6 +30,13 @@ public class InboxFragment extends Fragment implements MailAdapter.Listener {
   private TextView status;
   private TextView refresh;
 
+  private final BroadcastReceiver mailReceiver = new BroadcastReceiver() {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+      if (isAdded()) load();
+    }
+  };
+
   @Nullable
   @Override
   public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -43,23 +55,42 @@ public class InboxFragment extends Fragment implements MailAdapter.Listener {
     adapter = new MailAdapter(this);
     list.setAdapter(adapter);
 
-    refresh.setOnClickListener(v -> {
-      load();
-      Toast_reload();
-    });
+    refresh.setOnClickListener(v -> sync());
   }
 
-  private void Toast_reload() {
+  private void sync() {
     Prefs prefs = new Prefs(requireContext());
-    if (prefs.monitor() && prefs.hasMail()) {
-      ContextCompat.startForegroundService(requireContext(), new Intent(requireContext(), MailService.class));
+    if (!prefs.hasMail()) {
+      status.setText("Add your email and 16-character app password in Settings first.");
+      Toast.makeText(requireContext(), "No mailbox saved yet.", Toast.LENGTH_SHORT).show();
+      return;
     }
+    prefs.putBool("monitor", true);
+    MailService.start(requireContext());
+    status.setText("Syncing your inbox now…");
+    Toast.makeText(requireContext(), "Syncing now…", Toast.LENGTH_SHORT).show();
   }
 
   @Override
   public void onResume() {
     super.onResume();
+    IntentFilter filter = new IntentFilter(MailService.ACTION_MAIL);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      requireContext().registerReceiver(mailReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+    } else {
+      requireContext().registerReceiver(mailReceiver, filter);
+    }
     load();
+  }
+
+  @Override
+  public void onPause() {
+    try {
+      requireContext().unregisterReceiver(mailReceiver);
+    } catch (Exception ignored) {
+      // receiver was never registered
+    }
+    super.onPause();
   }
 
   private void load() {

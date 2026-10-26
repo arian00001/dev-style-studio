@@ -5,6 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Handler;
@@ -14,6 +15,7 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 
 import java.util.Properties;
 
@@ -34,6 +36,13 @@ public class MailService extends Service {
   public static final int NOTIFICATION_MONITOR = 1001;
   private static final long INTERVAL = 60_000L;
   private static final String TAG = "MailService";
+
+  /** Broadcast fired after a poll so the inbox screen refreshes itself. */
+  public static final String ACTION_MAIL = "com.devstyle.studio.MAIL_SYNC";
+
+  public static void start(Context context) {
+    ContextCompat.startForegroundService(context, new Intent(context, MailService.class));
+  }
 
   private final Handler handler = new Handler(Looper.getMainLooper());
   private Prefs prefs;
@@ -59,10 +68,10 @@ public class MailService extends Service {
   @Override
   public int onStartCommand(Intent intent, int flags, int startId) {
     startForeground(NOTIFICATION_MONITOR, monitorNotification("Watching your inbox 24/7"));
-    if (!running) {
-      running = true;
-      handler.post(tick);
-    }
+    // Every start (including "Sync now") polls straight away instead of waiting for the tick.
+    handler.removeCallbacksAndMessages(null);
+    running = true;
+    handler.post(tick);
     return START_STICKY;
   }
 
@@ -120,6 +129,8 @@ public class MailService extends Service {
 
   private void poll() {
     if (!prefs.hasMail()) {
+      running = false;
+      handler.removeCallbacksAndMessages(null);
       stopSelf();
       return;
     }
@@ -156,6 +167,7 @@ public class MailService extends Service {
             String body = textOf(message);
             store.insert(uid, sender, subject, body, received);
             notifyMail(sender, subject);
+            sendBroadcast(new Intent(ACTION_MAIL).setPackage(getPackageName()));
 
             if (prefs.autoReply() && !sender.equalsIgnoreCase(prefs.email())
                 && System.currentTimeMillis() - received < 86_400_000L) {

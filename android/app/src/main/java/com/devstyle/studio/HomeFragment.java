@@ -1,5 +1,6 @@
 package com.devstyle.studio;
 
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -12,6 +13,8 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
@@ -40,6 +43,9 @@ public class HomeFragment extends Fragment implements RepoAdapter.Listener {
   private TextView vercelButton;
   private ProgressBar buildBar;
   private ProgressBar repoBar;
+  private ActivityResultLauncher<String[]> zipPicker;
+  private AlertDialog uploadDialog;
+  private TextView uploadMessage;
 
   private final Handler handler = new Handler(Looper.getMainLooper());
   private Repo current;
@@ -81,6 +87,11 @@ public class HomeFragment extends Fragment implements RepoAdapter.Listener {
         ((MainActivity) getActivity()).openTab(R.id.tab_settings);
       }
     });
+
+    zipPicker = registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+      if (uri != null) askRepoName(uri);
+    });
+    view.findViewById(R.id.uploadZip).setOnClickListener(v -> pickZip());
 
     RecyclerView list = view.findViewById(R.id.repoList);
     list.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -466,6 +477,129 @@ public class HomeFragment extends Fragment implements RepoAdapter.Listener {
       @Override
       public void onError(String message) {
         if (isAdded()) vercelStatus.setText("Vercel token rejected: " + message);
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------- zip upload
+
+  private void pickZip() {
+    if (!prefs.hasGithub()) {
+      Toast.makeText(requireContext(), "Add your GitHub token in Settings first.", Toast.LENGTH_LONG).show();
+      if (getActivity() instanceof MainActivity) {
+        ((MainActivity) getActivity()).openTab(R.id.tab_settings);
+      }
+      return;
+    }
+    zipPicker.launch(new String[]{"application/zip", "application/x-zip-compressed", "application/octet-stream"});
+  }
+
+  private void askRepoName(final Uri uri) {
+    final EditText input = new EditText(requireContext());
+    String guess = uri.getLastPathSegment() == null ? "project" : uri.getLastPathSegment();
+    int slash = guess.lastIndexOf('/');
+    if (slash >= 0) guess = guess.substring(slash + 1);
+    if (guess.toLowerCase().endsWith(".zip")) guess = guess.substring(0, guess.length() - 4);
+    input.setText(ZipReader.sanitize(guess));
+    input.setSingleLine(true);
+
+    int pad = Math.round(getResources().getDisplayMetrics().density * 18);
+    FrameLayout wrap = new FrameLayout(requireContext());
+    wrap.setPadding(pad, pad / 2, pad, pad / 2);
+    wrap.addView(input);
+
+    new AlertDialog.Builder(requireContext())
+        .setTitle("New repository from this zip")
+        .setMessage("I create the repo, push every file, start the APK build and deploy it to Vercel.")
+        .setView(wrap)
+        .setPositiveButton("Upload & build", (dialog, which) ->
+            startUpload(uri, ZipReader.sanitize(input.getText().toString().trim())))
+        .setNegativeButton("Cancel", null)
+        .show();
+  }
+
+  private void startUpload(final Uri uri, final String name) {
+    uploadMessage = new TextView(requireContext());
+    int pad = Math.round(getResources().getDisplayMetrics().density * 20);
+    uploadMessage.setPadding(pad, pad, pad, pad);
+    uploadMessage.setTextSize(13f);
+    uploadMessage.setText("Reading the zip…");
+
+    uploadDialog = new AlertDialog.Builder(requireContext())
+        .setTitle("Uploading " + name)
+        .setView(uploadMessage)
+        .setNegativeButton("Hide", null)
+        .create();
+    uploadDialog.show();
+
+    ZipUploader.start(requireContext(), prefs.github(), uri, name, true, new ZipUploader.Listener() {
+      @Override
+      public void onStep(String message) {
+        if (uploadMessage != null) uploadMessage.setText(message);
+      }
+
+      @Override
+      public void onDone(GitHubPusher.Result result) {
+        if (!isAdded()) return;
+        if (uploadDialog != null && uploadDialog.isShowing()) uploadDialog.dismiss();
+        Repo repo = new Repo(result.repoId, result.owner, result.repo, result.branch, true, "");
+        adapter.submit(new ArrayList<>(), repo.fullName());
+        select(repo);
+        refreshVercelCard();
+        loadRepos();
+        Toast.makeText(requireContext(), "Pushed " + repo.fullName() + " — build and deploy started.",
+            Toast.LENGTH_LONG).show();
+        dispatchAfterUpload(repo);
+      }
+
+      @Override
+      public void onFailed(String message) {
+        if (!isAdded()) return;
+        if (uploadMessage != null) uploadMessage.setText("Upload failed: " + message);
+        Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show();
+      }
+    });
+  }
+
+  private void dispatchAfterUpload(final Repo repo) {
+    buildStatus.setText("Starting the Android workflow…");
+    GitHubClient.build(prefs.github(), repo.owner, repo.name, new GitHubClient.Callback() {
+      @Override
+      public void onSuccess(String body) {
+        if (!isAdded()) return;
+        buildStatus.setText("Build queued — waiting for a runner…");
+        handler.postDelayed(() -> {
+          buildPolling = true;
+          pollBuild(repo);
+        }, 7000);
+      }
+
+      @Override
+      public void onError(String message) {
+        if (isAdded()) buildStatus.setText("Could not start the build: " + message);
+      }
+    });
+
+    String vercel = prefs.vercel();
+    if (vercel.trim().length() == 0) {
+      vercelStatus.setText("Connect a Vercel token to deploy this repo automatically.");
+      return;
+    }
+    vercelStatus.setText("Deploying " + repo.fullName() + " to production…");
+    VercelApi.deploy(vercel, repo.name, repo.id, repo.branch, new VercelApi.Callback() {
+      @Override
+      public void onSuccess(String body) {
+        if (!isAdded()) return;
+        try {
+          pollDeployment(repo, new JSONObject(body).optString("id", ""), 0);
+        } catch (Exception e) {
+          vercelStatus.setText("Vercel: could not read the deployment.");
+        }
+      }
+
+      @Override
+      public void onError(String message) {
+        if (isAdded()) vercelStatus.setText("Vercel: " + message);
       }
     });
   }
