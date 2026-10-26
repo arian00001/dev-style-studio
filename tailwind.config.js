@@ -36,7 +36,11 @@ export default {
           lime: '#C7FB50',
           limeDeep: '#A8E63A',
           ink: '#0A0B0A',
-          ash: '#F5F6F2'
+          inkSoft: '#151914',
+          ash: '#F5F6F2',
+          sage: '#DBE4DC',
+          sageSoft: '#EAF0E8',
+          sageDeep: '#CBD8CD'
         },
         sidebar: {
           DEFAULT: 'hsl(var(--sidebar-background))',
