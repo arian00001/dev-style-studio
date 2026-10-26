@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="@color/screen"
+  android:fillViewport="true">
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingLeft="22dp"
+    android:paddingTop="30dp"
+    android:paddingRight="22dp"
+    android:paddingBottom="34dp">
+
+    <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:letterSpacing="0.18"
+      android:text="DEV STYLE STUDIO"
+      android:textColor="@color/muted"
+      android:textSize="11sp" />
+
+    <TextView
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="10dp"
+      android:lineSpacingExtra="2dp"
+      android:text="Ship APKs&#10;without a laptop"
+      android:textColor="@color/ink"
+      android:textSize="30sp"
+      android:textStyle="bold" />
+
+    <TextView
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="8dp"
+      android:lineSpacingExtra="3dp"
+      android:text="Connect GitHub, pick a repository and trigger the Android build — all inside this native app, with no browser engine involved."
+      android:textColor="@color/muted"
+      android:textSize="14sp" />
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="22dp"
+      android:background="@drawable/bg_card"
+      android:orientation="vertical"
+      android:padding="18dp">
+
+      <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="GitHub access token"
+        android:textColor="@color/ink"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
+      <EditText
+        android:id="@+id/tokenInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_input"
+        android:hint="ghp_..."
+        android:inputType="textPassword"
+        android:paddingLeft="14dp"
+        android:paddingTop="12dp"
+        android:paddingRight="14dp"
+        android:paddingBottom="12dp"
+        android:textColor="@color/ink"
+        android:textColorHint="@color/hint"
+        android:textSize="14sp" />
+
+      <TextView
+        android:id="@+id/connectButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_button"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:paddingTop="15dp"
+        android:paddingBottom="15dp"
+        android:text="Connect GitHub"
+        android:textColor="@color/ink"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+    </LinearLayout>
+
+    <ProgressBar
+      android:id="@+id/progress"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_gravity="center_horizontal"
+      android:layout_marginTop="18dp"
+      android:indeterminateTint="@color/limeDeep"
+      android:visibility="gone" />
+
+    <TextView
+      android:id="@+id/statusText"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="16dp"
+      android:text="Paste a token with repo and workflow access to begin."
+      android:textColor="@color/muted"
+      android:textSize="13sp" />
+
+    <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="24dp"
+      android:letterSpacing="0.16"
+      android:text="REPOSITORIES"
+      android:textColor="@color/muted"
+      android:textSize="11sp" />
+
+    <LinearLayout
+      android:id="@+id/repoList"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="12dp"
+      android:orientation="vertical" />
+  </LinearLayout>
+</ScrollView>

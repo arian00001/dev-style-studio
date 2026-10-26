@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="screen">#F4F7F2</color>
+  <color name="card">#FFFFFF</color>
+  <color name="ink">#0E120E</color>
+  <color name="muted">#6B7A6B</color>
+  <color name="hint">#9AA79A</color>
+  <color name="line">#E2E8DF</color>
+  <color name="lime">#C7FB50</color>
+  <color name="limeDeep">#7BAE1E</color>
+</resources>

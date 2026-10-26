@@ -2,10 +2,10 @@ name: Android APK
 
 on:
   workflow_dispatch:
-    inputs:
-      app_url:
-        description: Published app URL the APK loads (https://...)
-        required: false
+  push:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-apk.yml'
 
 permissions:
   contents: write
@@ -21,17 +21,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Resolve app URL
-        id: url
-        env:
-          INPUT_URL: ${{ inputs.app_url }}
-          DEFAULT_URL: ${{ vars.APP_URL }}
+      - name: Verify the app is native (no browser engine)
         run: |
-          if [ -n "$INPUT_URL" ]; then URL="$INPUT_URL"; else URL="$DEFAULT_URL"; fi
-          if [ -z "$URL" ]; then
-            echo "::warning::No app URL was provided, so the APK will show an information screen. Pass the app_url input or set the APP_URL repository variable."
+          if grep -rn "android\\.webkit\\|WebViewClient\\|new WebView(" android/app/src/main; then
+            echo "::error::The Android sources still use the system browser engine."
+            exit 1
           fi
-          echo "app_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Native screens only - no browser engine in the sources."
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -48,10 +44,7 @@ jobs:
           fi
           echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
-          echo "Using SDK at $SDK"
-          ls "$SDK"
           SDKMANAGER=$(ls -d "$SDK"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -n 1)
-          echo "Using sdkmanager at $SDKMANAGER"
           if [ -n "$SDKMANAGER" ]; then yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true; fi
 
       - name: Set up Gradle
@@ -61,9 +54,7 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
-        env:
-          APP_URL: ${{ steps.url.outputs.app_url }}
-        run: gradle assembleDebug --no-daemon -PappUrl="$APP_URL"
+        run: gradle assembleDebug --no-daemon
 
       - name: Collect APK
         run: |
@@ -83,8 +74,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-${{ github.run_number }}
-          name: APK build ${{ github.run_number }}
+          name: Dev Style Studio APK ${{ github.run_number }}
           body: |
-            Debug APK built from ${{ github.sha }}
-            App URL loaded: ${{ steps.url.outputs.app_url }}
+            Native Android build (no browser engine) from ${{ github.sha }}
           files: dist/dev-style-studio.apk
