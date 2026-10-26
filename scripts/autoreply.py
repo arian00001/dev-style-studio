@@ -2,15 +2,17 @@
 """Cloud backup for the 24/7 email auto-reply.
 
 Runs on a schedule in GitHub Actions, so replies keep going out even when the
-phone is off: reads unread mail over IMAP, composes an answer from the house
-template (optionally polished by Gemini) and sends it over SMTP.
+phone is off: reads unread mail over IMAP, answers with the template that the
+Android app published as ``mail-template.json`` (designed HTML, images included)
+or, only when the template file says ``"mode": "ai"``, with a Gemini written
+reply.
 
 Secrets (repo settings -> Secrets and variables -> Actions):
   MAIL_EMAIL          your address
   MAIL_APP_PASSWORD   16 character Gmail app password
-  GEMINI_API_KEY      optional, makes the replies written by the model
+  GEMINI_API_KEY      optional, only used when the template mode is "ai"
 Optional variables:
-  MAIL_TEMPLATE       house style, use \\n for line breaks
+  MAIL_TEMPLATE       plain house style used when no mail-template.json exists
   MAIL_MAX_REPLIES    how many mails to answer per run (default 10)
 """
 from __future__ import annotations
@@ -25,6 +27,7 @@ import ssl
 import sys
 import urllib.request
 from email.header import decode_header, make_header
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import parseaddr
 
@@ -32,6 +35,7 @@ DEFAULT_TEMPLATE = (
     "Hi,\n\nThanks for your email - I have received it and will reply shortly.\n\n"
     "- Sent from Dev Style Studio"
 )
+TEMPLATE_FILES = ("mail-template.json", "scripts/mail-template.json")
 MODEL_CACHE: list = []
 SKIP_SENDERS = (
     "noreply", "no-reply", "no_reply", "donotreply", "do-not-reply",
@@ -47,14 +51,41 @@ def env(*names: str, default: str = "") -> str:
     return default
 
 
+def load_template() -> dict:
+    """The template the Android app publishes into the repository root."""
+    for path in TEMPLATE_FILES:
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as handle:
+                data = json.load(handle)
+            if isinstance(data, dict):
+                print(f"template loaded from {path}")
+                return data
+        except Exception as error:  # noqa: BLE001
+            print(f"template {path} unreadable: {error}")
+    return {}
+
+
 ADDRESS = env("MAIL_EMAIL", "MAIL_USER", "GMAIL_USER")
 PASSWORD = env("MAIL_APP_PASSWORD", "MAIL_PASS", "GMAIL_APP_PASSWORD")
 GEMINI_KEY = env("GEMINI_API_KEY")
-TEMPLATE = env("MAIL_TEMPLATE", default=DEFAULT_TEMPLATE).replace("\\n", "\n")
+TEMPLATE_TEXT = env("MAIL_TEMPLATE", default=DEFAULT_TEMPLATE).replace("\\n", "\n")
+TEMPLATE_JSON = load_template()
+TEMPLATE_HTML = (TEMPLATE_JSON.get("html") or "").strip()
+TEMPLATE_MODE = (TEMPLATE_JSON.get("mode") or "").strip().lower()
+TEMPLATE_SUBJECT = (TEMPLATE_JSON.get("subject") or "Re: {{subject}}").strip()
 IMAP_HOST = env("MAIL_IMAP_HOST", default="imap.gmail.com")
 SMTP_HOST = env("MAIL_SMTP_HOST", default="smtp.gmail.com")
 MAX_REPLIES = int(env("MAIL_MAX_REPLIES", default="10"))
 DRY_RUN = env("MAIL_DRY_RUN") == "1"
+
+
+def use_ai() -> bool:
+    """A published template always wins; Gemini only runs when mode is "ai"."""
+    if TEMPLATE_HTML:
+        return TEMPLATE_MODE == "ai" and bool(GEMINI_KEY)
+    return bool(GEMINI_KEY)
 
 
 def text_of(message: email.message.Message) -> str:
@@ -138,22 +169,92 @@ def automated(sender: str, message: email.message.Message) -> bool:
     return False
 
 
-def compose(sender: str, subject: str, body: str) -> str:
-    template = TEMPLATE.replace("{{from}}", sender).replace("{{subject}}", subject)
-    if not GEMINI_KEY:
-        return template
-    prompt = (
-        "Write a short, friendly reply email (max 90 words, no subject line) to this "
-        f"message. Reply body:\n{body[:2000]}\n\nUse this house style as guidance:\n{template}"
+def fill(text: str, sender: str, subject: str) -> str:
+    return (text or "").replace("{{from}}", sender).replace("{{subject}}", subject)
+
+
+def plain_from_template(sender: str, subject: str, main_text: str = "") -> str:
+    heading = fill(TEMPLATE_JSON.get("heading", ""), sender, subject).strip()
+    body = (main_text or fill(TEMPLATE_JSON.get("body", ""), sender, subject)).strip()
+    signature = fill(TEMPLATE_JSON.get("signature", ""), sender, subject).strip()
+    parts = [part for part in (heading, body, signature) if part]
+    if parts:
+        return "\n\n".join(parts)
+    return fill(TEMPLATE_TEXT, sender, subject)
+
+
+def reply_subject(subject: str) -> str:
+    value = fill(TEMPLATE_SUBJECT, "", subject).strip() or subject
+    return value if value.lower().startswith("re:") else f"Re: {value}"
+
+
+def compose(sender: str, subject: str, body: str) -> dict:
+    """Returns the reply to send: mode, subject, plain text and HTML."""
+    if use_ai():
+        prompt = (
+            "Write a short, friendly reply email (max 90 words, no subject line) to this "
+            f"message. Reply body:\n{body[:2000]}\n\nUse this house style as guidance:\n"
+            f"{fill(TEMPLATE_TEXT, sender, subject)}"
+        )
+        written = gemini(prompt)
+        if written:
+            if TEMPLATE_HTML:
+                return {
+                    "mode": "ai",
+                    "subject": reply_subject(subject),
+                    "plain": plain_from_template(sender, subject, written),
+                    "html": wrap_ai_reply(written, sender, subject),
+                }
+            return {
+                "mode": "ai",
+                "subject": reply_subject(subject),
+                "plain": written,
+                "html": "",
+            }
+
+    if TEMPLATE_HTML:
+        return {
+            "mode": "template",
+            "subject": reply_subject(subject),
+            "plain": plain_from_template(sender, subject),
+            "html": fill(TEMPLATE_HTML, sender, subject),
+        }
+
+    return {
+        "mode": "template",
+        "subject": reply_subject(subject),
+        "plain": fill(TEMPLATE_TEXT, sender, subject),
+        "html": "",
+    }
+
+
+def wrap_ai_reply(written: str, sender: str, subject: str) -> str:
+    """Drop the model's words into the designed card the app published."""
+    import html as htmllib
+
+    paragraphs = "".join(
+        f'<p style="margin:0 0 14px;">{htmllib.escape(block.strip()).replace(chr(10), "<br/>")}</p>'
+        for block in written.split("\n\n")
+        if block.strip()
     )
-    return gemini(prompt) or template
+    filled = fill(TEMPLATE_HTML, sender, subject)
+    body_marker = fill(TEMPLATE_JSON.get("body", ""), sender, subject).strip()
+    first = body_marker.split("\n")[0] if body_marker else ""
+    if first and first in filled:
+        return filled.replace(first, paragraphs, 1)
+    return filled
 
 
-def send(to: str, subject: str, body: str) -> None:
-    message = MIMEText(body, "plain", "utf-8")
+def send(to: str, subject: str, plain: str, html: str = "") -> None:
+    if html:
+        message = MIMEMultipart("alternative")
+        message.attach(MIMEText(plain, "plain", "utf-8"))
+        message.attach(MIMEText(html, "html", "utf-8"))
+    else:
+        message = MIMEText(plain, "plain", "utf-8")
     message["From"] = ADDRESS
     message["To"] = to
-    message["Subject"] = subject if subject.lower().startswith("re:") else f"Re: {subject}"
+    message["Subject"] = subject
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL(SMTP_HOST, 465, context=context, timeout=30) as smtp:
         smtp.login(ADDRESS, PASSWORD)
@@ -165,6 +266,7 @@ def main() -> int:
         print("MAIL_EMAIL and MAIL_APP_PASSWORD secrets are missing.")
         return 1
 
+    print(f"reply mode: {'ai (Gemini)' if use_ai() else 'template only'}")
     box = imaplib.IMAP4_SSL(IMAP_HOST, 993)
     try:
         box.login(ADDRESS, PASSWORD)
@@ -200,10 +302,10 @@ def main() -> int:
             reply = compose(sender, subject, body)
 
             if DRY_RUN:
-                print(f"[dry run] would reply to {sender}: {subject}")
+                print(f"[dry run] would reply to {sender} with {reply['mode']}: {subject}")
             else:
-                send(sender, subject, reply)
-                print(f"Replied to {sender}: {subject}")
+                send(sender, reply["subject"], reply["plain"], reply["html"])
+                print(f"Replied ({reply['mode']}) to {sender}: {subject}")
             box.store(uid, "+FLAGS", "(\\Seen)")
             answered += 1
 

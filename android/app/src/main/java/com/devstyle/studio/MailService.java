@@ -26,9 +26,14 @@ import javax.mail.Session;
 import javax.mail.Store;
 import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
 
-/** 24/7 inbox monitor: polls IMAP, mirrors mail locally and can auto-reply with Gemini. */
+/**
+ * 24/7 inbox monitor: polls IMAP, mirrors mail locally and auto-replies.
+ * Replies come from the saved template; Gemini only runs when it is switched on.
+ */
 public class MailService extends Service {
 
   public static final String CHANNEL_MONITOR = "monitor";
@@ -171,10 +176,7 @@ public class MailService extends Service {
 
             if (prefs.autoReply() && !sender.equalsIgnoreCase(prefs.email())
                 && System.currentTimeMillis() - received < 86_400_000L) {
-              String reply = buildReply(sender, subject, body);
-              if (reply != null && sendReply(sender, subject, reply)) {
-                store.markReplied(uid);
-              }
+              reply(uid, sender, subject, body);
             }
           }
         }
@@ -223,24 +225,39 @@ public class MailService extends Service {
     return "";
   }
 
-  private String buildReply(String sender, String subject, String body) {
-    String template = prefs.template();
-    if (template == null || template.trim().length() == 0) {
-      template = "Hi,\n\nThanks for your email — I have received it and will reply shortly.\n\n"
-          + "— Sent from Dev Style Studio";
+  /** Template mode sends the saved template as-is; Gemini only runs when switched on. */
+  private void reply(String uid, String sender, String subject, String body) {
+    ReplyTemplate template = ReplyTemplate.load(prefs);
+    String ai = template.aiEnabled(prefs) ? askGemini(template, body) : null;
+
+    String plain;
+    String html;
+    String kind;
+    if (ai != null && ai.trim().length() > 0) {
+      plain = template.plainText(sender, subject, ai);
+      html = template.html(sender, subject, ai);
+      kind = "ai";
+    } else {
+      plain = template.plainText(sender, subject);
+      html = template.html(sender, subject);
+      kind = "template";
     }
-    template = template.replace("{{from}}", sender).replace("{{subject}}", subject);
 
-    String key = prefs.gemini();
-    if (key.trim().length() == 0) return template;
+    if (sendReply(sender, template.replySubject(subject), plain, html)) {
+      store.markReplied(uid, plain, kind);
+      sendBroadcast(new Intent(ACTION_MAIL).setPackage(getPackageName()));
+    }
+  }
 
-    // Gemini polishes the template with the actual message; falls back to the template on error.
-    final String[] holder = new String[]{template};
+  /** Returns the model's reply, or null when Gemini is unavailable. */
+  private String askGemini(ReplyTemplate template, String body) {
+    final String[] holder = new String[]{null};
     final Object lock = new Object();
     final String prompt = "Write a short, friendly reply email (max 90 words, no subject line) "
-        + "to this message. Reply body:\n" + body + "\n\nUse this house style as guidance:\n" + template;
+        + "to this message. Reply body:\n" + body + "\n\nUse this house style as guidance:\n"
+        + template.body;
 
-    GeminiApi.ask(key, prompt, new GeminiApi.Callback() {
+    GeminiApi.ask(prefs.gemini(), prompt, new GeminiApi.Callback() {
       @Override
       public void onSuccess(String text) {
         synchronized (lock) {
@@ -251,6 +268,7 @@ public class MailService extends Service {
 
       @Override
       public void onError(String message) {
+        Log.w(TAG, "Gemini reply failed: " + message);
         synchronized (lock) {
           lock.notifyAll();
         }
@@ -267,7 +285,7 @@ public class MailService extends Service {
     return holder[0];
   }
 
-  private boolean sendReply(String to, String subject, String body) {
+  private boolean sendReply(String to, String subject, String plain, String html) {
     try {
       Properties props = new Properties();
       props.setProperty("mail.smtp.host", "smtp.gmail.com");
@@ -288,8 +306,22 @@ public class MailService extends Service {
       MimeMessage reply = new MimeMessage(session);
       reply.setFrom(new InternetAddress(user));
       reply.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to));
-      reply.setSubject(subject.startsWith("Re:") ? subject : "Re: " + subject);
-      reply.setText(body);
+      reply.setSubject(subject);
+
+      if (html == null || html.trim().length() == 0) {
+        reply.setText(plain, "utf-8");
+      } else {
+        // Designed HTML plus a plain-text fallback for clients that cannot render it.
+        MimeBodyPart textPart = new MimeBodyPart();
+        textPart.setText(plain, "utf-8");
+        MimeBodyPart htmlPart = new MimeBodyPart();
+        htmlPart.setContent(html, "text/html; charset=utf-8");
+        MimeMultipart alternative = new MimeMultipart("alternative");
+        alternative.addBodyPart(textPart);
+        alternative.addBodyPart(htmlPart);
+        reply.setContent(alternative);
+      }
+
       Transport.send(reply);
       return true;
     } catch (Exception e) {

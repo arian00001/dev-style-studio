@@ -122,6 +122,39 @@ public class GitHubPusher {
     return result;
   }
 
+  /** Writes one file (the reply template) into an existing repository. */
+  public static void putFile(String token, String owner, String repo, String path,
+                             String content, String message) throws Exception {
+    if (token == null || token.trim().length() == 0) {
+      throw new Exception("Add your GitHub token in Settings first.");
+    }
+    String base = "/repos/" + owner + "/" + repo;
+    String branch;
+    try {
+      branch = new JSONObject(call(token, "GET", base, null)).optString("default_branch", "main");
+    } catch (Exception e) {
+      throw new Exception("GitHub could not find " + owner + "/" + repo + ".");
+    }
+    if (branch == null || branch.length() == 0) branch = "main";
+
+    String sha = null;
+    try {
+      JSONObject existing = new JSONObject(call(token, "GET", base + "/contents/" + path, null));
+      sha = existing.optString("sha", "");
+      if (sha.length() == 0) sha = null;
+    } catch (Exception missing) {
+      sha = null;
+    }
+
+    JSONObject body = new JSONObject();
+    body.put("message", message);
+    body.put("content", android.util.Base64.encodeToString(
+        content.getBytes("UTF-8"), android.util.Base64.NO_WRAP));
+    body.put("branch", branch);
+    if (sha != null) body.put("sha", sha);
+    call(token, "PUT", base + "/contents/" + path, body.toString());
+  }
+
   private static String call(String token, String method, String path, String body) throws Exception {
     HttpURLConnection conn = null;
     try {

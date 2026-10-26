@@ -110,9 +110,18 @@ public class InboxFragment extends Fragment implements MailAdapter.Listener {
 
   @Override
   public void onOpen(MailStore.Mail mail) {
+    StringBuilder message = new StringBuilder("From: ").append(mail.from).append("\n\n").append(mail.body);
+    if (mail.replied && mail.replyText != null && mail.replyText.trim().length() > 0) {
+      message.append("\n\n──────────\n")
+          .append("ai".equals(mail.replyKind) ? "AI reply sent" : "Template reply sent")
+          .append("\n──────────\n\n")
+          .append(mail.replyText.trim());
+    } else if (mail.replied) {
+      message.append("\n\n(Replied — the reply text was not stored.)");
+    }
     new AlertDialog.Builder(requireContext())
         .setTitle(mail.subject)
-        .setMessage("From: " + mail.from + "\n\n" + mail.body)
+        .setMessage(message.toString())
         .setPositiveButton("Close", null)
         .show();
   }

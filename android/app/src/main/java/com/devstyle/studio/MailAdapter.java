@@ -48,7 +48,17 @@ public class MailAdapter extends RecyclerView.Adapter<MailAdapter.Holder> {
     if (snippet.length() > 110) snippet = snippet.substring(0, 110) + "…";
     holder.snippet.setText(snippet);
     holder.time.setText(DateFormat.format("dd MMM · HH:mm", mail.time));
-    holder.state.setText(mail.replied ? "auto-replied" : "waiting");
+    holder.state.setText(mail.replied ? "replied" : "waiting");
+
+    boolean replied = mail.replied && mail.replyText != null && mail.replyText.trim().length() > 0;
+    holder.reply.setVisibility(replied ? View.VISIBLE : View.GONE);
+    holder.kind.setVisibility(replied ? View.VISIBLE : View.GONE);
+    if (replied) {
+      String reply = mail.replyText.replace('\n', ' ').trim();
+      if (reply.length() > 130) reply = reply.substring(0, 130) + "…";
+      holder.reply.setText("You sent: " + reply);
+      holder.kind.setText("ai".equals(mail.replyKind) ? "· AI reply" : "· template reply");
+    }
     holder.card.setOnClickListener(v -> listener.onOpen(mail));
   }
 
@@ -64,6 +74,8 @@ public class MailAdapter extends RecyclerView.Adapter<MailAdapter.Holder> {
     final TextView snippet;
     final TextView time;
     final TextView state;
+    final TextView kind;
+    final TextView reply;
 
     Holder(View view) {
       super(view);
@@ -73,6 +85,8 @@ public class MailAdapter extends RecyclerView.Adapter<MailAdapter.Holder> {
       snippet = view.findViewById(R.id.mailSnippet);
       time = view.findViewById(R.id.mailTime);
       state = view.findViewById(R.id.mailState);
+      kind = view.findViewById(R.id.mailReplyKind);
+      reply = view.findViewById(R.id.mailReply);
     }
   }
 }
