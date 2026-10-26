@@ -19,6 +19,7 @@ import email
 import imaplib
 import json
 import os
+import re
 import smtplib
 import ssl
 import sys
@@ -81,13 +82,20 @@ def candidate_models() -> list:
     try:
         with urllib.request.urlopen(url, timeout=20) as response:
             body = json.loads(response.read().decode("utf-8"))
+        skip = ("image", "tts", "embedding", "aqa", "live", "audio", "gemma", "nano", "banana", "computer", "veo")
         names = [
             item["name"].split("/")[-1]
             for item in body.get("models", [])
             if "generateContent" in item.get("supportedGenerationMethods", [])
+            and not any(word in item["name"] for word in skip)
         ]
-        names.sort(key=lambda name: (0 if "flash" in name else 1, name))
-        MODEL_CACHE.extend(names[:4])
+
+        def rank(name: str):
+            version = re.search(r"gemini-(\d+(?:\.\d+)?)", name)
+            return (0 if "flash" in name else 1, -float(version.group(1)) if version else 0.0, len(name))
+
+        names.sort(key=rank)
+        MODEL_CACHE.extend(names[:5])
         print(f"using models: {', '.join(MODEL_CACHE) or 'none'}")
     except Exception as error:  # noqa: BLE001
         print(f"model discovery failed: {error}")
