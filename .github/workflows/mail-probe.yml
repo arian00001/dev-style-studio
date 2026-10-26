@@ -11,21 +11,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: List available Gemini models
+      - name: Try a real generateContent call
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python3 - <<'PY'
-          import json, os, urllib.request
-          key = os.environ.get("GEMINI_API_KEY", "")
-          print("key length:", len(key), "prefix:", key[:4])
+          import json, os, urllib.request, urllib.error
+          key = os.environ.get("GEMINI_API_KEY", "").strip()
+          payload = json.dumps({"contents": [{"role": "user", "parts": [{"text": "Reply in 10 words: thanks for your email"}]}]}).encode()
           for version in ("v1beta", "v1"):
-              url = f"https://generativelanguage.googleapis.com/{version}/models?key={key}"
-              try:
-                  with urllib.request.urlopen(url, timeout=25) as r:
-                      body = json.loads(r.read().decode())
-                  names = [m["name"] for m in body.get("models", [])]
-                  print(version, "ok", len(names), names[:12])
-              except Exception as e:
-                  print(version, "failed", e)
+              for model in ("gemini-2.5-flash", "gemini-flash-latest"):
+                  url = f"https://generativelanguage.googleapis.com/{version}/models/{model}:generateContent?key={key}"
+                  req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+                  try:
+                      with urllib.request.urlopen(req, timeout=30) as r:
+                          body = json.loads(r.read().decode())
+                      text = "".join(p.get("text", "") for p in body["candidates"][0]["content"]["parts"])
+                      print(version, model, "OK ->", text.strip()[:80])
+                  except urllib.error.HTTPError as e:
+                      print(version, model, "HTTP", e.code, e.read().decode()[:300])
+                  except Exception as e:
+                      print(version, model, "ERR", e)
           PY
