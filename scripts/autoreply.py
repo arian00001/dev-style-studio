@@ -31,7 +31,11 @@ DEFAULT_TEMPLATE = (
     "Hi,\n\nThanks for your email - I have received it and will reply shortly.\n\n"
     "- Sent from Dev Style Studio"
 )
-MODELS = ("gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest")
+MODEL_CACHE: list = []
+SKIP_SENDERS = (
+    "noreply", "no-reply", "no_reply", "donotreply", "do-not-reply",
+    "mailer-daemon", "postmaster", "notifications", "notification",
+)
 
 
 def env(*names: str, default: str = "") -> str:
@@ -69,13 +73,34 @@ def text_of(message: email.message.Message) -> str:
         return ""
 
 
+def candidate_models() -> list:
+    """Ask the API which models this key may use, flash models first."""
+    if MODEL_CACHE:
+        return MODEL_CACHE
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_KEY}"
+    try:
+        with urllib.request.urlopen(url, timeout=20) as response:
+            body = json.loads(response.read().decode("utf-8"))
+        names = [
+            item["name"].split("/")[-1]
+            for item in body.get("models", [])
+            if "generateContent" in item.get("supportedGenerationMethods", [])
+        ]
+        names.sort(key=lambda name: (0 if "flash" in name else 1, name))
+        MODEL_CACHE.extend(names[:4])
+        print(f"using models: {', '.join(MODEL_CACHE) or 'none'}")
+    except Exception as error:  # noqa: BLE001
+        print(f"model discovery failed: {error}")
+    return MODEL_CACHE
+
+
 def gemini(prompt: str) -> str:
     """Best effort: ask Gemini for a short reply, fall back to the template."""
     if not GEMINI_KEY:
         return ""
     payload = {"contents": [{"role": "user", "parts": [{"text": prompt}]}]}
     data = json.dumps(payload).encode("utf-8")
-    for model in MODELS:
+    for model in candidate_models():
         url = (
             "https://generativelanguage.googleapis.com/v1beta/models/"
             f"{model}:generateContent?key={GEMINI_KEY}"
@@ -93,6 +118,16 @@ def gemini(prompt: str) -> str:
         except Exception as error:  # noqa: BLE001 - any model error falls through
             print(f"gemini {model} failed: {error}")
     return ""
+
+
+def automated(sender: str, message: email.message.Message) -> bool:
+    """Newsletters, no-reply addresses and bulk mail get no answer."""
+    local = sender.split("@")[0].lower()
+    if any(token in local for token in SKIP_SENDERS):
+        return True
+    if message.get("List-Unsubscribe") or (message.get("Precedence") or "").lower() in ("bulk", "list", "junk"):
+        return True
+    return False
 
 
 def compose(sender: str, subject: str, body: str) -> str:
@@ -131,11 +166,13 @@ def main() -> int:
             print("Nothing unread.")
             return 0
 
-        pending = data[0].split()[-MAX_REPLIES:]
-        print(f"{len(pending)} unread message(s) to handle.")
+        pending = list(reversed(data[0].split()))
+        print(f"{len(pending)} unread message(s) found.")
         answered = 0
 
         for uid in pending:
+            if answered >= MAX_REPLIES:
+                break
             status, fetched = box.fetch(uid, "(BODY.PEEK[])")
             if status != "OK" or not fetched or not isinstance(fetched[0], tuple):
                 continue
@@ -143,6 +180,10 @@ def main() -> int:
             sender = parseaddr(message.get("From", ""))[1]
             if not sender or sender.lower() == ADDRESS.lower():
                 box.store(uid, "+FLAGS", "(\\Seen)")
+                continue
+
+            if automated(sender, message):
+                print(f"Skipped automated sender: {sender}")
                 continue
 
             raw_subject = message.get("Subject") or "(no subject)"
