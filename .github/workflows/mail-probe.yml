@@ -1,0 +1,31 @@
+name: Mail probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: List available Gemini models
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          key = os.environ.get("GEMINI_API_KEY", "")
+          print("key length:", len(key), "prefix:", key[:4])
+          for version in ("v1beta", "v1"):
+              url = f"https://generativelanguage.googleapis.com/{version}/models?key={key}"
+              try:
+                  with urllib.request.urlopen(url, timeout=25) as r:
+                      body = json.loads(r.read().decode())
+                  names = [m["name"] for m in body.get("models", [])]
+                  print(version, "ok", len(names), names[:12])
+              except Exception as e:
+                  print(version, "failed", e)
+          PY
