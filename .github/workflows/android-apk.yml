@@ -29,7 +29,7 @@ jobs:
         run: |
           if [ -n "$INPUT_URL" ]; then URL="$INPUT_URL"; else URL="$DEFAULT_URL"; fi
           if [ -z "$URL" ]; then
-            echo "::warning::No app URL was provided, so the APK will open with an information screen. Pass the app_url input or set the APP_URL repository variable."
+            echo "::warning::No app URL was provided, so the APK will show an information screen. Pass the app_url input or set the APP_URL repository variable."
           fi
           echo "app_url=$URL" >> "$GITHUB_OUTPUT"
 
@@ -39,8 +39,20 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Locate Android SDK
+        run: |
+          if [ -d "$ANDROID_SDK_ROOT" ]; then SDK="$ANDROID_SDK_ROOT"; elif [ -d "$ANDROID_HOME" ]; then SDK="$ANDROID_HOME"; else SDK=/usr/local/lib/android/sdk; fi
+          if [ ! -d "$SDK" ]; then
+            echo "::error::No Android SDK on this runner"
+            exit 1
+          fi
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "Using SDK at $SDK"
+          ls "$SDK"
+          SDKMANAGER=$(ls -d "$SDK"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -n 1)
+          echo "Using sdkmanager at $SDKMANAGER"
+          if [ -n "$SDKMANAGER" ]; then yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true; fi
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
