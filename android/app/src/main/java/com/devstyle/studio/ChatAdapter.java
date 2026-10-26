@@ -46,12 +46,11 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.Holder> {
     holder.bubble.setBackgroundResource(
         message.fromUser ? R.drawable.bg_chat_user : R.drawable.bg_chat_ai);
     holder.bubble.setGravity(message.fromUser ? Gravity.END : Gravity.START);
-    ViewGroup.MarginLayoutParams params =
-        (ViewGroup.MarginLayoutParams) holder.bubble.getLayoutParams();
+    android.widget.FrameLayout.LayoutParams params =
+        (android.widget.FrameLayout.LayoutParams) holder.bubble.getLayoutParams();
     params.gravity = message.fromUser ? Gravity.END : Gravity.START;
     holder.bubble.setLayoutParams(params);
-    holder.bubble.setTextColor(holder.bubble.getContext()
-        .getColor(message.fromUser ? R.color.ink : R.color.ink));
+    holder.bubble.setTextColor(holder.bubble.getContext().getColor(R.color.ink));
   }
 
   @Override
