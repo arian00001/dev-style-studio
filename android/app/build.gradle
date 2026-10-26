@@ -10,8 +10,18 @@ android {
         applicationId 'com.devstyle.studio'
         minSdk 23
         targetSdk 34
-        versionCode 3
+        versionCode 4
         versionName '3.0'
+    }
+
+    signingConfigs {
+        release {
+            storeFile file('devstyle-release.p12')
+            storeType 'PKCS12'
+            storePassword 'devstyle2026'
+            keyAlias 'devstyle'
+            keyPassword 'devstyle2026'
+        }
     }
 
     buildTypes {
@@ -21,6 +31,8 @@ android {
         }
         release {
             minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
