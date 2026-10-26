@@ -59,7 +59,14 @@ jobs:
       - name: Collect and verify APK
         run: |
           mkdir -p dist
-          cp android/app/build/outputs/apk/release/app-release.apk dist/dev-style-studio.apk
+          APK=$(find . -type f -path '*outputs/apk/release/*.apk' | head -n 1)
+          if [ -z "$APK" ]; then
+            echo "::error::Release APK was not produced"
+            find . -type f -name '*.apk' || true
+            exit 1
+          fi
+          echo "Using $APK"
+          cp "$APK" dist/dev-style-studio.apk
           APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -n 1)
           if [ -n "$APKSIGNER" ]; then
             "$APKSIGNER" verify --verbose dist/dev-style-studio.apk
