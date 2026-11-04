@@ -53,11 +53,21 @@ public class ZipReader {
       }
       ByteArrayOutputStream buffer = new ByteArrayOutputStream();
       long total = 0;
+      boolean tooLarge = false;
       int read;
       while ((read = zip.read(chunk)) > 0) {
         total += read;
-        if (total > MAX_BYTES) break;
+        if (total > MAX_BYTES) {
+          tooLarge = true;
+          break;
+        }
         buffer.write(chunk, 0, read);
+      }
+      if (tooLarge) {
+        // A clipped entry would be pushed to GitHub as if it were whole, quietly
+        // corrupting every binary above the limit. Skip it and report it instead.
+        result.skipped++;
+        continue;
       }
       names.add(name);
       blobs.add(buffer.toByteArray());
